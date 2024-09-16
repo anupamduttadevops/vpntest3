@@ -28,6 +28,7 @@ jobs:
 
       - name: Connect to VPN
         run: |
+          cat vpn_credentials.txt
           sudo openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
           sleep 10
           sudo cat /var/log/syslog | grep openvpn
