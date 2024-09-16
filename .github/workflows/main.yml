@@ -30,6 +30,7 @@ jobs:
         run: |
           sudo openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
           sleep 10
+          sudo cat /var/log/syslog | grep openvpn
 
       - name: SSH into EC2 and Create Folder
         uses: appleboy/ssh-action@v0.1.6
