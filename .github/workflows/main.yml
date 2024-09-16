@@ -13,10 +13,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # - name: Install OpenVPN
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y openvpn
+      - name: Install OpenVPN
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openvpn
 
       - name: Set Up VPN Configuration and Credentials
         run: |
@@ -26,22 +26,22 @@ jobs:
           echo "${{ secrets.VPN_USERNAME }}" > vpn_credentials.txt
           echo "${{ secrets.VPN_PASSWORD }}" >> vpn_credentials.txt
 
-      # - name: Connect to VPN
-      #   run: |
-      #     sudo openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
-      #     sleep 10
-      #     sudo cat /var/log/syslog | grep openvpn
+      - name: Connect to VPN
+        run: |
+          sudo openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
+          sleep 10
+          sudo cat /var/log/syslog | grep openvpn
 
-      - name: OpenVPN-Connect
-        uses: kota65535/github-openvpn-connect-action@v3.0.0
-        with:
-           config_file: vpn_config.ovpn
-           username: ${{ secrets.VPN_USERNAME }}
-           password: ${{ secrets.VPN_PASSWORD }}
-           # tls_auth_key: # optional
-           # tls_crypt_key: # optional
-           # tls_crypt_v2_key: # optional
-           # client_key: # optional
+      # - name: OpenVPN-Connect
+      #   uses: kota65535/github-openvpn-connect-action@v3.0.0
+      #   with:
+      #      config_file: vpn_config.ovpn
+      #      username: ${{ secrets.VPN_USERNAME }}
+      #      password: ${{ secrets.VPN_PASSWORD }}
+      #      # tls_auth_key: # optional
+      #      # tls_crypt_key: # optional
+      #      # tls_crypt_v2_key: # optional
+      #      # client_key: # optional
 
       - name: SSH into EC2 and Create Folder
         uses: appleboy/ssh-action@v0.1.6
