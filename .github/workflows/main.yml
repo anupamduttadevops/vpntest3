@@ -58,8 +58,12 @@ jobs:
       - name: Connect to VPN
         run: |
           echo "Starting OpenVPN..."
-          export LD_LIBRARY_PATH=~/openvpn-cache:$LD_LIBRARY_PATH
-          sudo -E ~/openvpn-cache/openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
+          export LD_LIBRARY_PATH=~/openvpn-cache/lib:$LD_LIBRARY_PATH
+          echo '#!/bin/bash' > sudo_pass.sh
+          echo 'echo ""' >> sudo_pass.sh
+          chmod +x sudo_pass.sh
+          export SUDO_ASKPASS=./sudo_pass.sh
+          sudo -A ~/openvpn-cache/bin/openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
           echo "Waiting for connection..."
           sleep 10
           if ip addr show tun0 > /dev/null 2>&1; then
@@ -70,6 +74,7 @@ jobs:
             sudo cat /var/log/syslog | grep openvpn
             exit 1
           fi
+
       # - name: Connect to VPN
       #   run: |
       #     cat vpn_credentials.txt
