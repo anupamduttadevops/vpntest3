@@ -1,107 +1,62 @@
 name: SSH into EC2 Behind VPN
 
+
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
+ push:
+   branches:
+     - main
+
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+ deploy:
+   runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
 
-      # - name: Install OpenVPN
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y openvpn
+   steps:
+     - name: Checkout code
+       uses: actions/checkout@v2
 
-      - name: Set Up VPN Configuration and Credentials
-        run: |
-          echo "${{ secrets.VPN_CONFIG }}" > vpn_config.ovpn
-          # echo "${{ secrets.VPN_USERNAME }}" > vpn_username.txt
-          # echo "${{ secrets.VPN_PASSWORD }}" > vpn_password.txt
-          echo "${{ secrets.VPN_USERNAME }}" > vpn_credentials.txt
-          echo "${{ secrets.VPN_PASSWORD }}" >> vpn_credentials.txt
-      - name: Cache OpenVPN and dependencies
-        id: cache-openvpn
-        uses: actions/cache@v2
-        with:
-          path: ~/openvpn-cache
-          key: ${{ runner.os }}-openvpn-${{ hashFiles('**/workflow.yml') }}
 
-      - name: Install or verify OpenVPN
-        run: |
-          if [ ! -d ~/openvpn-cache ]; then
-            echo "OpenVPN not found in cache, installing..."
-            sudo apt-get update
-            sudo apt-get install -y openvpn
-            mkdir -p ~/openvpn-cache/bin
-            mkdir -p ~/openvpn-cache/lib
-            sudo cp $(which openvpn) ~/openvpn-cache/bin/
-            sudo cp -r /usr/lib/x86_64-linux-gnu/openvpn ~/openvpn-cache/lib/
-            sudo cp /usr/lib/x86_64-linux-gnu/libpkcs11-helper.so.1 ~/openvpn-cache/lib/
-            sudo chown -R $USER:$USER ~/openvpn-cache
-          else
-            echo "OpenVPN found in cache, verifying..."
-          fi
-          
-          export LD_LIBRARY_PATH=~/openvpn-cache/lib:$LD_LIBRARY_PATH
-          ~/openvpn-cache/bin/openvpn --version
-          
-          echo "OpenVPN path: ~/openvpn-cache/bin/openvpn"
-          echo "Content of ~/openvpn-cache:"
-          ls -lR ~/openvpn-cache
-      - name: Connect to VPN
-        run: |
-          echo "Starting OpenVPN..."
-          export LD_LIBRARY_PATH=~/openvpn-cache/lib:$LD_LIBRARY_PATH
-          echo '#!/bin/bash' > sudo_pass.sh
-          echo 'echo ""' >> sudo_pass.sh
-          chmod +x sudo_pass.sh
-          export SUDO_ASKPASS=./sudo_pass.sh
-          sudo -A ~/openvpn-cache/bin/openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
-          echo "Waiting for connection..."
-          sleep 10
-          if ip addr show tun0 > /dev/null 2>&1; then
-            echo "VPN connection established"
-            ip addr show tun0
-          else
-            echo "VPN connection failed"
-            sudo cat /var/log/syslog | grep openvpn
-            exit 1
-          fi
+     - name: Install OpenVPN
+       run: |
+         sudo apt-get update
+         sudo apt-get install -y openvpn
+     - name: Set Up VPN Configuration and Credentials
+       run: |
+         echo "${{ secrets.VPN_CONFIG }}" > vpn_config.ovpn
+         # echo "${{ secrets.VPN_USERNAME }}" > vpn_username.txt
+         # echo "${{ secrets.VPN_PASSWORD }}" > vpn_password.txt
+         echo "${{ secrets.VPN_USERNAME }}" > vpn_credentials.txt
+         echo "${{ secrets.VPN_PASSWORD }}" >> vpn_credentials.txt
+     - name: Connect to VPN
+       run: |
+         cat vpn_credentials.txt
+         sudo openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
+         sleep 10
+         sudo cat /var/log/syslog | grep openvpn
+     # - name: OpenVPN-Connect
+     #   uses: kota65535/github-openvpn-connect-action@v3.0.0
+     #   with:
+     #      config_file: vpn_config.ovpn
+     #      username: ${{ secrets.VPN_USERNAME }}
+     #      password: ${{ secrets.VPN_PASSWORD }}
+     #      # tls_auth_key: # optional
+     #      # tls_crypt_key: # optional
+     #      # tls_crypt_v2_key: # optional
+     #      # client_key: # optional
 
-      # - name: Connect to VPN
-      #   run: |
-      #     cat vpn_credentials.txt
-      #     sudo openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
-      #     sleep 10
-      #     sudo cat /var/log/syslog | grep openvpn
 
-      # - name: OpenVPN-Connect
-      #   uses: kota65535/github-openvpn-connect-action@v3.0.0
-      #   with:
-      #      config_file: vpn_config.ovpn
-      #      username: ${{ secrets.VPN_USERNAME }}
-      #      password: ${{ secrets.VPN_PASSWORD }}
-      #      # tls_auth_key: # optional
-      #      # tls_crypt_key: # optional
-      #      # tls_crypt_v2_key: # optional
-      #      # client_key: # optional
+     - name: SSH into EC2 and Create Folder
+       uses: appleboy/ssh-action@v0.1.6
+       with:
+         host: ${{ secrets.EC2_IP }}
+         username: ubuntu
+         key: ${{ secrets.SSH_PRIVATE_KEY }}
+         port: 22
+         script: mkdir -p ~/new_folder
 
-      - name: SSH into EC2 and Create Folder
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.EC2_IP }}
-          username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          script: mkdir -p ~/new_folder
 
-      - name: Clean Up VPN Configuration
-        run: |
-          rm -f vpn_config.ovpn vpn_credentials.txt
+     - name: Clean Up VPN Configuration
+       run: |
+         rm -f vpn_config.ovpn vpn_credentials.txt
+
