@@ -12,11 +12,22 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Cache OpenVPN
+        uses: actions/cache@v2
+        with:
+          path: /usr/sbin/openvpn
+          key: ${{ runner.os }}-openvpn
 
-      - name: Install OpenVPN
+      - name: Install OpenVPN if not cached
+        if: steps.cache-openvpn.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y openvpn
+
+      # - name: Install OpenVPN
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y openvpn
 
       - name: Set Up VPN Configuration and Credentials
         run: |
