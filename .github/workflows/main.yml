@@ -39,20 +39,22 @@ jobs:
             echo "OpenVPN not found in cache, installing..."
             sudo apt-get update
             sudo apt-get install -y openvpn
-            mkdir -p ~/openvpn-cache
-            sudo cp -r /usr/lib/x86_64-linux-gnu/openvpn ~/openvpn-cache/
-            sudo cp /usr/lib/x86_64-linux-gnu/libpkcs11-helper.so.1 ~/openvpn-cache/
+            mkdir -p ~/openvpn-cache/bin
+            mkdir -p ~/openvpn-cache/lib
+            sudo cp $(which openvpn) ~/openvpn-cache/bin/
+            sudo cp -r /usr/lib/x86_64-linux-gnu/openvpn ~/openvpn-cache/lib/
+            sudo cp /usr/lib/x86_64-linux-gnu/libpkcs11-helper.so.1 ~/openvpn-cache/lib/
             sudo chown -R $USER:$USER ~/openvpn-cache
           else
             echo "OpenVPN found in cache, verifying..."
           fi
           
-          export LD_LIBRARY_PATH=~/openvpn-cache:$LD_LIBRARY_PATH
-          ~/openvpn-cache/openvpn --version
+          export LD_LIBRARY_PATH=~/openvpn-cache/lib:$LD_LIBRARY_PATH
+          ~/openvpn-cache/bin/openvpn --version
           
-          echo "OpenVPN path: ~/openvpn-cache/openvpn"
+          echo "OpenVPN path: ~/openvpn-cache/bin/openvpn"
           echo "Content of ~/openvpn-cache:"
-          ls -l ~/openvpn-cache
+          ls -lR ~/openvpn-cache
       - name: Connect to VPN
         run: |
           echo "Starting OpenVPN..."
