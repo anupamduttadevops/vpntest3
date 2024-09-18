@@ -26,41 +26,38 @@ jobs:
           # echo "${{ secrets.VPN_PASSWORD }}" > vpn_password.txt
           echo "${{ secrets.VPN_USERNAME }}" > vpn_credentials.txt
           echo "${{ secrets.VPN_PASSWORD }}" >> vpn_credentials.txt
-      - name: Cache OpenVPN
+      - name: Cache OpenVPN and dependencies
         id: cache-openvpn
         uses: actions/cache@v2
         with:
-          path: ~/openvpn
+          path: ~/openvpn-cache
           key: ${{ runner.os }}-openvpn-${{ hashFiles('**/workflow.yml') }}
 
-      - name: Verify OpenVPN Installation
+      - name: Install or verify OpenVPN
         run: |
-          if [ -f ~/openvpn/openvpn ]; then
-            echo "OpenVPN found in cache"
-            ~/openvpn/openvpn --version
-          else
+          if [ ! -d ~/openvpn-cache ]; then
             echo "OpenVPN not found in cache, installing..."
             sudo apt-get update
             sudo apt-get install -y openvpn
-            mkdir -p ~/openvpn
-            sudo cp $(which openvpn) ~/openvpn/
-            sudo chown $USER:$USER ~/openvpn/openvpn
+            mkdir -p ~/openvpn-cache
+            sudo cp $(which openvpn) ~/openvpn-cache/
+            sudo cp /usr/lib/x86_64-linux-gnu/openvpn/* ~/openvpn-cache/
+            sudo chown -R $USER:$USER ~/openvpn-cache
+          else
+            echo "OpenVPN found in cache, verifying..."
           fi
-          echo "OpenVPN path: $(which openvpn)"
-          echo "Content of ~/openvpn:"
-          ls -l ~/openvpn
-
-      - name: Set Up VPN Configuration and Credentials
-        run: |
-          echo "${{ secrets.VPN_CONFIG }}" > vpn_config.ovpn
-          echo "${{ secrets.VPN_USERNAME }}" > vpn_credentials.txt
-          echo "${{ secrets.VPN_PASSWORD }}" >> vpn_credentials.txt
-          echo "VPN config and credentials set up"
-
+          
+          export LD_LIBRARY_PATH=~/openvpn-cache:$LD_LIBRARY_PATH
+          ~/openvpn-cache/openvpn --version
+          
+          echo "OpenVPN path: ~/openvpn-cache/openvpn"
+          echo "Content of ~/openvpn-cache:"
+          ls -l ~/openvpn-cache
       - name: Connect to VPN
         run: |
           echo "Starting OpenVPN..."
-          sudo ~/openvpn/openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
+          export LD_LIBRARY_PATH=~/openvpn-cache:$LD_LIBRARY_PATH
+          sudo -E ~/openvpn-cache/openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
           echo "Waiting for connection..."
           sleep 10
           if ip addr show tun0 > /dev/null 2>&1; then
