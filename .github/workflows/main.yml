@@ -1,6 +1,7 @@
 name: SSH into EC2 Behind VPN
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
