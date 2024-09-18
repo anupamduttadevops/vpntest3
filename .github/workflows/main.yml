@@ -13,21 +13,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Cache OpenVPN
-        id: cache-openvpn
-        uses: actions/cache@v2
-        with:
-          path: ~/openvpn
-          key: ${{ runner.os }}-openvpn-${{ hashFiles('**/workflow.yml') }}
-
-      - name: Install OpenVPN if not cached
-        if: steps.cache-openvpn.outputs.cache-hit != 'true'
-        run: |
-          sudo apt-get update
-          mkdir -p ~/openvpn
-          sudo apt-get install -y openvpn
-          sudo cp $(which openvpn) ~/openvpn/
-          sudo chown $USER:$USER ~/openvpn/openvpn
 
       # - name: Install OpenVPN
       #   run: |
@@ -41,13 +26,57 @@ jobs:
           # echo "${{ secrets.VPN_PASSWORD }}" > vpn_password.txt
           echo "${{ secrets.VPN_USERNAME }}" > vpn_credentials.txt
           echo "${{ secrets.VPN_PASSWORD }}" >> vpn_credentials.txt
+      - name: Cache OpenVPN
+        id: cache-openvpn
+        uses: actions/cache@v2
+        with:
+          path: ~/openvpn
+          key: ${{ runner.os }}-openvpn-${{ hashFiles('**/workflow.yml') }}
+
+      - name: Verify OpenVPN Installation
+        run: |
+          if [ -f ~/openvpn/openvpn ]; then
+            echo "OpenVPN found in cache"
+            ~/openvpn/openvpn --version
+          else
+            echo "OpenVPN not found in cache, installing..."
+            sudo apt-get update
+            sudo apt-get install -y openvpn
+            mkdir -p ~/openvpn
+            sudo cp $(which openvpn) ~/openvpn/
+            sudo chown $USER:$USER ~/openvpn/openvpn
+          fi
+          echo "OpenVPN path: $(which openvpn)"
+          echo "Content of ~/openvpn:"
+          ls -l ~/openvpn
+
+      - name: Set Up VPN Configuration and Credentials
+        run: |
+          echo "${{ secrets.VPN_CONFIG }}" > vpn_config.ovpn
+          echo "${{ secrets.VPN_USERNAME }}" > vpn_credentials.txt
+          echo "${{ secrets.VPN_PASSWORD }}" >> vpn_credentials.txt
+          echo "VPN config and credentials set up"
 
       - name: Connect to VPN
         run: |
-          cat vpn_credentials.txt
-          sudo openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
+          echo "Starting OpenVPN..."
+          sudo ~/openvpn/openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
+          echo "Waiting for connection..."
           sleep 10
-          sudo cat /var/log/syslog | grep openvpn
+          if ip addr show tun0 > /dev/null 2>&1; then
+            echo "VPN connection established"
+            ip addr show tun0
+          else
+            echo "VPN connection failed"
+            sudo cat /var/log/syslog | grep openvpn
+            exit 1
+          fi
+      # - name: Connect to VPN
+      #   run: |
+      #     cat vpn_credentials.txt
+      #     sudo openvpn --config vpn_config.ovpn --auth-user-pass vpn_credentials.txt --daemon
+      #     sleep 10
+      #     sudo cat /var/log/syslog | grep openvpn
 
       # - name: OpenVPN-Connect
       #   uses: kota65535/github-openvpn-connect-action@v3.0.0
