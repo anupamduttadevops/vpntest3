@@ -14,16 +14,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Cache OpenVPN
+        id: cache-openvpn
         uses: actions/cache@v2
         with:
-          path: /usr/sbin/openvpn
-          key: ${{ runner.os }}-openvpn
+          path: ~/openvpn
+          key: ${{ runner.os }}-openvpn-${{ hashFiles('**/workflow.yml') }}
 
       - name: Install OpenVPN if not cached
         if: steps.cache-openvpn.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
+          mkdir -p ~/openvpn
           sudo apt-get install -y openvpn
+          sudo cp $(which openvpn) ~/openvpn/
+          sudo chown $USER:$USER ~/openvpn/openvpn
 
       # - name: Install OpenVPN
       #   run: |
